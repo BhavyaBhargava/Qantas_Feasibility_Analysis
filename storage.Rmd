@@ -1,0 +1,130 @@
+---
+title: 'Data on swift parrot populations near Toowoomba and Geelong'
+author: "Bhavya Bhargava"
+date: 'March 22, 2024'
+header-includes: 
+- \setcounter{secnumdepth}{0}
+output: 
+  html_document:
+    css: assignment.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      eval = TRUE, 
+                      cache = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE)
+options(width=80, digits=3)
+```
+
+# Importing the packages that were utilized and citing them
+
+```{r}
+#install.packages(c("galah", "tidyverse"))
+library(tidyverse)
+library(galah)
+#packages cited
+citation("tidyverse")
+citation("galah")
+```
+
+# Downloading the data and filtering it according to the coordinates
+
+The data for this analysis is being retrieved from the Atlas of Living Australia (ALA) website using their 'galah' package, a powerful tool designed for this purpose. Below are of the steps taken to perform data acquisition, including comments on crucial decisions I made along the way:
+
+1. Starting off I configured the 'galah' session with my email address and specifying the reason for the data download (As taught in tutorial). This is an essential requirement for maintaining the integrity and sustainability of the ALA database.
+
+2. For checking the relevant occurrences, the search parameters were pre-defined (According to requirements).
+
+3. Stored the required location coordinates into respective variables named according to the locations. Here instead of using the tibbles, I explicitly used the coordinates of both the locations as it provides better flexibility.
+
+4. To search for occurrences while keeping code duplication to a minimum, a function was developed which took the coordinates of the location along with the species name and start date of the search as input and churned out the occurrences as per the ALA database.
+
+5. As the data which was received had some irrelevant fields with repetitive data, some filtering was done to remove those and a few fields were even renamed to make data as relevant as possible to the search and further analysis if required.
+
+6. Further the data for the two locations was saved int two separate RDAs for easy location specific analysis later.
+
+Below is the code for the above statement:
+
+```{r}
+# Configuring the 'galah' query
+galah_config(email = "bbha0006@student.monash.edu",
+             download_reason_id = 10, 
+             verbose = TRUE)
+
+# Specifying the species name and the start date for checking occurrences
+species_name <- "Lathamus discolor"
+start_date <- "2000-01-01"
+
+# Creating two variables to store the latitude and longitude for the two locations
+toowoomba_coords <- c(-27.5538, 151.7956)
+geelong_coords <- c(-38.0220, 144.4768)
+
+# Creating a function to minimize code duplication for searching the occurrences
+search_occurrences <- function(coords, species, start_date) {
+  galah_call() %>%
+    galah_identify(species) %>%
+    galah_filter(year >= as.numeric(format(as.Date(start_date), "%Y")),
+                 decimalLatitude >= coords[1] - 1, decimalLatitude <= coords[1] + 1,
+                 decimalLongitude >= coords[2] - 1, decimalLongitude <= coords[2] + 1) %>%
+    atlas_occurrences()
+}
+
+# Fetching occurrences for Toowoomba
+toowoomba_occurrences <- search_occurrences(toowoomba_coords, species_name, start_date) %>%
+  select(decimalLatitude, decimalLongitude, eventDate, dataResourceName) %>% # storing only required fields
+  rename(Latitude = decimalLatitude, Longitude = decimalLongitude)
+
+# Fetching occurrences for Geelong
+geelong_occurrences <- search_occurrences(geelong_coords, species_name, start_date) %>%
+  select(decimalLatitude, decimalLongitude, eventDate, dataResourceName) %>% # storing only required fields
+  rename(Latitude = decimalLatitude, Longitude = decimalLongitude)
+
+# Data saved into two seperate .rda files for easy analysis
+save(toowoomba_occurrences, file = "data/toowoomba_occurrences.rda")
+save(geelong_occurrences, file = "data/geelong_occurrences.rda")
+
+```
+# Data sets description
+
+The data for both the locations is in files `toowoomba_occurrences.rda` and `geelong_occurrences.rda` respectively in the `data` directory. 
+
+They contain the following variables:
+
+- Latitude and Longitude-> Contains the coordinates of the exact location where an observation had occurred.
+
+- eventDate-> Indicates the date (and sometimes the time) of the observation or occurrence. This field can prove useful in providing insights into the seasonal movement of the species around the area.
+
+- dataResourceName-> Contains the source of the occurrence data. This field identifies the organization, database, or project that provided the data. This information can prove important for understanding the context of the data, its reliability, and the scope of its observations.
+
+# Dataset population and limitations analysis
+
+Our dataset contains observations from reputable sources like `eBird Australia` and `NSW BioNet Atlas`. It aims to represent the species' occurrences around the specified locations in detail. By including data spanning multiple years and from multiple sources, we've aimed to capture a representative sample of the presence of the species, taking into consideration the yearly variations. However, limitations such as potential sampling biases caused by more active bird watching seasons and the usual inaccuracy observer reporting accuracy could affect the dataset's completeness and reliability. Despite these challenges, this dataset provides valuable insights into the specie's distribution and it's activity patterns in the selected areas, helping us to make informed decisions regarding the suitability of these locations for a new storage facility based on their occurrences.
+
+# Data Licensing
+
+The licensing situation for data shared via the Atlas of Living Australia (ALA), and presumably for data accessed through the galah package, encourages the use of Creative Commons Australia licenses, with a preference for the Creative Commons Attribution (CC BY) license.
+(https://support.ala.org.au/support/solutions/articles/6000197133-what-licence-should-i-use-)
+
+# To understand the connectivity and observe the location with the least interactions
+
+```{r}
+
+# Loading the subset for analysis(Perhaps changing the below path to just "data/`place_name`_occurrences.rda" might help.)
+load(here::here("C:/Users/user/Desktop/ETC5512/assignment1/data/toowoomba_occurrences.rda"))
+load(here::here("C:/Users/user/Desktop/ETC5512/assignment1/data/geelong_occurrences.rda"))
+
+# Function to count the number of occurrences
+count_occurences <- function(location_data){
+  nrow(location_data)
+}
+
+# Presenting Results for Comparison
+cat("Number of Swift Parrot encounters in Toowoomba: ", count_occurences(toowoomba_occurrences),"\n")
+cat("Number of Swift Parrot encounters in Geelong: ", count_occurences(geelong_occurrences), "\n")
+
+```
+
+As can be seen from the drastic difference in the number of occurrences of Swift Parrots between both the locations, Toowoomba might prove to  be the most suitable location for the storage facility.
+
